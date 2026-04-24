@@ -12,6 +12,7 @@ import postsRouter from "./routes/posts";
 import aiRouter from "./routes/ai";
 import mediaRouter from "./routes/media";
 import { getDb } from "./db/schema";
+import { startScheduler } from "./lib/scheduler";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -27,6 +28,9 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Init DB on startup
 getDb();
+
+// Start auto-post scheduler
+startScheduler();
 
 // Routes
 app.use("/api/auth", authRouter);

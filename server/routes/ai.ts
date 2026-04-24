@@ -1,12 +1,15 @@
 import { Router, Request, Response } from "express";
-import Anthropic from "@anthropic-ai/sdk";
 import { getDb } from "../db/schema";
 import { requireAuth } from "../middleware/auth";
+import { aiGenerate, getProviderStatus } from "../lib/aiRouter";
 
 const router = Router();
 router.use(requireAuth);
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// GET /api/ai/status — cek provider mana yang aktif
+router.get("/status", (_req: Request, res: Response) => {
+  return res.json({ providers: getProviderStatus() });
+});
 
 // POST /api/ai/caption
 router.post("/caption", async (req: Request, res: Response) => {
@@ -21,8 +24,7 @@ router.post("/caption", async (req: Request, res: Response) => {
       "SELECT bg.*, c.name as client_name, c.industry FROM brand_guidelines bg JOIN clients c ON c.id = bg.client_id WHERE bg.client_id = ? AND c.org_id = ?"
     ).get(clientId, req.auth!.orgId) as any;
     if (bg) {
-      brandContext = `
-Brand context:
+      brandContext = `\nBrand context:
 - Client: ${bg.client_name} (${bg.industry || "general"})
 - Brand voice: ${bg.brand_voice || "professional"}
 - Tone: ${bg.tone || tone || "casual"}
@@ -43,28 +45,18 @@ Brand context:
 
   const platformInstr = platformGuide[platform?.toLowerCase()] || platformGuide.instagram;
 
-  const prompt = `You are an expert social media content creator for Indonesian brands and businesses.
-${brandContext}
+  const systemPrompt = `You are an expert social media content creator for Indonesian brands and businesses. Write engaging captions in Bahasa Indonesia (or mixed if appropriate). Include relevant hashtags at the end. Return ONLY the caption text, no explanation.`;
 
-Task: Write an engaging social media caption for ${platform || "Instagram"}.
+  const prompt = `Write an engaging ${platform || "Instagram"} caption.
 Topic: ${topic}
 Tone: ${tone || "casual and friendly"}
-Platform guide: ${platformInstr}
-
-Write the caption in Bahasa Indonesia (or mix with English if appropriate for the brand).
-Include relevant hashtags at the end.
-Return ONLY the caption text, no explanation.`;
+Platform guide: ${platformInstr}${brandContext}`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 600,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const caption = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
-    return res.json({ caption });
+    const result = await aiGenerate(prompt, { maxTokens: 600, systemPrompt });
+    return res.json({ caption: result.text, provider: result.provider, model: result.model });
   } catch (err: any) {
-    return res.status(500).json({ error: "AI error: " + err.message });
+    return res.status(500).json({ error: "Semua AI provider gagal: " + err.message });
   }
 });
 
@@ -81,17 +73,12 @@ router.post("/hashtags", async (req: Request, res: Response) => {
   }
 
   const prompt = `Generate 20 relevant hashtags for a ${platform || "Instagram"} post about: "${topic}" for a ${industry} brand in Indonesia.
-Return ONLY hashtags, one per line, in format #hashtag. Mix Indonesian and English hashtags. Include popular, niche, and branded hashtags.`;
+Return ONLY hashtags, one per line, format: #hashtag. Mix Indonesian and English. Include popular, niche, and branded hashtags.`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const text = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
-    const hashtags = text.split("\n").map((h: string) => h.trim()).filter((h: string) => h.startsWith("#"));
-    return res.json({ hashtags });
+    const result = await aiGenerate(prompt, { maxTokens: 300 });
+    const hashtags = result.text.split("\n").map((h: string) => h.trim()).filter((h: string) => h.startsWith("#"));
+    return res.json({ hashtags, provider: result.provider, model: result.model });
   } catch (err: any) {
     return res.status(500).json({ error: "AI error: " + err.message });
   }
@@ -102,34 +89,50 @@ router.post("/brand-guidelines", async (req: Request, res: Response) => {
   const { clientName, industry, description } = req.body;
   if (!clientName) return res.status(400).json({ error: "Nama client wajib" });
 
-  const prompt = `You are a brand strategist. Create comprehensive brand guidelines for a social media strategy for:
+  const systemPrompt = `You are a brand strategist. Return ONLY valid JSON, no markdown, no explanation.`;
+
+  const prompt = `Create comprehensive social media brand guidelines for:
 - Brand: ${clientName}
 - Industry: ${industry || "general"}
 - Description: ${description || "N/A"}
 
-Return a JSON object with these exact keys:
+Return this JSON object (write in Bahasa Indonesia, be specific):
 {
   "brand_voice": "...",
   "tone": "...",
   "key_messages": "...",
   "visual_guidelines": "...",
-  "hashtags": "#tag1 #tag2 #tag3 ...",
+  "hashtags": "#tag1 #tag2 #tag3",
   "target_audience": "..."
-}
-
-Write in Bahasa Indonesia. Be specific and actionable.`;
+}`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 800,
-      messages: [{ role: "user", content: prompt }],
-    });
-    const text = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const result = await aiGenerate(prompt, { maxTokens: 800, systemPrompt });
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return res.status(500).json({ error: "AI response format error" });
     const guidelines = JSON.parse(jsonMatch[0]);
-    return res.json({ guidelines });
+    return res.json({ guidelines, provider: result.provider, model: result.model });
+  } catch (err: any) {
+    return res.status(500).json({ error: "AI error: " + err.message });
+  }
+});
+
+// POST /api/ai/improve — improve text (caption, title, excerpt, content)
+router.post("/improve", async (req: Request, res: Response) => {
+  const { text, type = "caption", platform, tone } = req.body;
+  if (!text?.trim()) return res.status(400).json({ error: "Teks wajib" });
+
+  const systemPrompt = `You are a professional copywriter for Indonesian social media and content. Improve the given text and return ONLY the improved version, no explanation.`;
+
+  const prompt = `Improve this ${type} for ${platform || "social media"} with ${tone || "professional"} tone:
+
+"${text}"
+
+Return only the improved ${type}.`;
+
+  try {
+    const result = await aiGenerate(prompt, { maxTokens: 800, systemPrompt });
+    return res.json({ improved: result.text, provider: result.provider, model: result.model });
   } catch (err: any) {
     return res.status(500).json({ error: "AI error: " + err.message });
   }

@@ -113,6 +113,17 @@ function runMigrations(db: Database.Database) {
       created_at  TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Scheduler log
+    CREATE TABLE IF NOT EXISTS scheduler_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      post_id    INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+      org_id     INTEGER NOT NULL,
+      client_id  INTEGER,
+      action     TEXT NOT NULL,
+      detail     TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_clients_org ON clients(org_id);
     CREATE INDEX IF NOT EXISTS idx_posts_org ON posts(org_id);

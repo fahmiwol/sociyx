@@ -104,4 +104,23 @@ router.delete("/:id", (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+// GET /api/posts/scheduler/log — riwayat auto-publish
+router.get("/scheduler/log", (req: Request, res: Response) => {
+  const db = getDb();
+  try {
+    const logs = db.prepare(`
+      SELECT sl.*, p.title, p.caption, c.name as client_name, c.color as client_color
+      FROM scheduler_log sl
+      LEFT JOIN posts p ON p.id = sl.post_id
+      LEFT JOIN clients c ON c.id = sl.client_id
+      WHERE sl.org_id = ?
+      ORDER BY sl.created_at DESC
+      LIMIT 50
+    `).all(req.auth!.orgId);
+    return res.json({ logs });
+  } catch {
+    return res.json({ logs: [] }); // table may not exist yet
+  }
+});
+
 export default router;

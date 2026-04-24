@@ -34,6 +34,7 @@ export default function StudioAI() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [usedProvider, setUsedProvider] = useState<string | null>(null);
 
   const PLATFORMS = [
     { id: 'instagram', icon: ImageIcon, label: 'Instagram' },
@@ -49,10 +50,12 @@ export default function StudioAI() {
     setLoading(true);
     setResult(null);
     try {
-      const { caption } = await aiApi.caption({ topic, platform, tone });
-      setResult(caption || 'Gagal menghasilkan konten. Coba lagi.');
+      const res = await aiApi.caption({ topic, platform, tone });
+      setResult((res as any).caption || 'Gagal menghasilkan konten. Coba lagi.');
+      if ((res as any).provider) setUsedProvider(`${(res as any).provider}/${(res as any).model}`);
     } catch (err) {
       setResult('Terjadi kesalahan saat menghubungi Mission Control.');
+      setUsedProvider(null);
     } finally {
       setLoading(false);
     }
@@ -150,7 +153,11 @@ export default function StudioAI() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Hasil Generasi AI</h3>
-              {result && <span className="text-[10px] text-primary-container bg-primary-container/10 px-2 py-1 rounded font-bold">✨ Claude AI</span>}
+              {result && (
+                <span className="text-[10px] text-primary-container bg-primary-container/10 px-2 py-1 rounded font-bold font-mono">
+                  ✨ {usedProvider || 'AI'}
+                </span>
+              )}
             </div>
             
             <div className="glass-panel p-6 rounded-2xl relative min-h-[200px] flex flex-col justify-center">
