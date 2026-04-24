@@ -24,7 +24,7 @@ import {
   CheckCircle2,
   Rocket
 } from 'lucide-react';
-import { generateCaption } from '../services/geminiService';
+import { aiApi } from '../lib/api';
 import { cn } from '../lib/utils';
 
 export default function StudioAI() {
@@ -49,7 +49,7 @@ export default function StudioAI() {
     setLoading(true);
     setResult(null);
     try {
-      const caption = await generateCaption(topic, platform, tone);
+      const { caption } = await aiApi.caption({ topic, platform, tone });
       setResult(caption || 'Gagal menghasilkan konten. Coba lagi.');
     } catch (err) {
       setResult('Terjadi kesalahan saat menghubungi Mission Control.');
@@ -150,7 +150,7 @@ export default function StudioAI() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Hasil Generasi AI</h3>
-              {result && <span className="text-[10px] text-primary-container bg-primary-container/10 px-2 py-1 rounded font-bold">Terproses dari Gemini 2.0</span>}
+              {result && <span className="text-[10px] text-primary-container bg-primary-container/10 px-2 py-1 rounded font-bold">✨ Claude AI</span>}
             </div>
             
             <div className="glass-panel p-6 rounded-2xl relative min-h-[200px] flex flex-col justify-center">
@@ -244,7 +244,7 @@ export default function StudioAI() {
             <Rocket className="w-4 h-4" />
             Luncurkan Misi (Publish)
           </button>
-          <p className="text-center text-[10px] text-slate-600 mt-3 font-mono">Disediakan oleh SocioStudio Engine</p>
+          <p className="text-center text-[10px] text-slate-600 mt-3 font-mono">Powered by OPIX · Tiranyx Platform</p>
         </div>
       </section>
     </motion.div>
