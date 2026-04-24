@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Sora:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Grotesk", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #ffb870;
+  --color-primary-container: #ec8f17;
+  --color-surface: #10131c;
+  --color-on-surface: #e0e2ef;
+  --color-secondary: #78dd5c;
+  --color-error: #ffb4ab;
+  --color-surface-container: #1c1f29;
+  --color-surface-variant: #32343f;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-body selection:bg-primary/30;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+  
+  .nebula-glow {
+    background: radial-gradient(circle at 50% 50%, rgba(236, 143, 23, 0.05) 0%, transparent 70%);
+  }
+  
+  .telemetry-line {
+    filter: drop-shadow(0 0 4px #ec8f17);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  }
+}

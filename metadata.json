@@ -1,0 +1,14 @@
+{
+  "name": "SocioStudio",
+  "description": "Platform manajemen media sosial multi-klien dengan Mission Control canggih, fitur Studio AI untuk konten, dan manajemen aset brand.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "AI Content Generation",
+    "Social Media Scheduling",
+    "Multi-client Dashboard",
+    "Brand Asset Management"
+  ]
+}
