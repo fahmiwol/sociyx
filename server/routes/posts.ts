@@ -5,6 +5,23 @@ import { requireAuth } from "../middleware/auth";
 const router = Router();
 router.use(requireAuth);
 
+// GET /api/posts/stats/dashboard — MUST be before /:id
+router.get("/stats/dashboard", (req: Request, res: Response) => {
+  const db = getDb();
+  const orgId = req.auth!.orgId;
+  const totalClients = (db.prepare("SELECT COUNT(*) as n FROM clients WHERE org_id = ? AND is_active = 1").get(orgId) as any).n;
+  const totalPosts = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ?").get(orgId) as any).n;
+  const scheduled = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ? AND status = 'scheduled'").get(orgId) as any).n;
+  const drafts = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ? AND status = 'draft'").get(orgId) as any).n;
+  const published = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ? AND status = 'published'").get(orgId) as any).n;
+  const recentPosts = db.prepare(`
+    SELECT p.id, p.title, p.caption, p.status, p.scheduled_at, p.platforms, p.created_at, c.name as client_name, c.color as client_color
+    FROM posts p JOIN clients c ON c.id = p.client_id
+    WHERE p.org_id = ? ORDER BY p.updated_at DESC LIMIT 5
+  `).all(orgId);
+  return res.json({ totalClients, totalPosts, scheduled, drafts, published, recentPosts });
+});
+
 // GET /api/posts?client_id=&status=&limit=&offset=
 router.get("/", (req: Request, res: Response) => {
   const db = getDb();
@@ -85,23 +102,6 @@ router.delete("/:id", (req: Request, res: Response) => {
   const result = db.prepare("DELETE FROM posts WHERE id = ? AND org_id = ?").run(req.params.id, req.auth!.orgId);
   if (result.changes === 0) return res.status(404).json({ error: "Post tidak ditemukan" });
   return res.json({ ok: true });
-});
-
-// GET /api/posts/stats/dashboard
-router.get("/stats/dashboard", (req: Request, res: Response) => {
-  const db = getDb();
-  const orgId = req.auth!.orgId;
-  const totalClients = (db.prepare("SELECT COUNT(*) as n FROM clients WHERE org_id = ? AND is_active = 1").get(orgId) as any).n;
-  const totalPosts = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ?").get(orgId) as any).n;
-  const scheduled = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ? AND status = 'scheduled'").get(orgId) as any).n;
-  const drafts = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ? AND status = 'draft'").get(orgId) as any).n;
-  const published = (db.prepare("SELECT COUNT(*) as n FROM posts WHERE org_id = ? AND status = 'published'").get(orgId) as any).n;
-  const recentPosts = db.prepare(`
-    SELECT p.id, p.title, p.caption, p.status, p.scheduled_at, p.platforms, p.created_at, c.name as client_name, c.color as client_color
-    FROM posts p JOIN clients c ON c.id = p.client_id
-    WHERE p.org_id = ? ORDER BY p.updated_at DESC LIMIT 5
-  `).all(orgId);
-  return res.json({ totalClients, totalPosts, scheduled, drafts, published, recentPosts });
 });
 
 export default router;
