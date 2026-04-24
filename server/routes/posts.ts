@@ -44,6 +44,73 @@ router.get("/scheduler/log", (req: Request, res: Response) => {
   }
 });
 
+// GET /api/posts/stats/calendar?year=2026&month=4
+router.get("/stats/calendar", (req: Request, res: Response) => {
+  const db = getDb();
+  const { year, month } = req.query as any;
+  const y = parseInt(year) || new Date().getFullYear();
+  const m = parseInt(month) || (new Date().getMonth() + 1);
+  const start = `${y}-${String(m).padStart(2, "0")}-01`;
+  const nextM = m === 12 ? 1 : m + 1;
+  const nextY = m === 12 ? y + 1 : y;
+  const end = `${nextY}-${String(nextM).padStart(2, "0")}-01`;
+
+  const posts = db.prepare(`
+    SELECT p.id, p.title, p.caption, p.status, p.scheduled_at, p.platforms,
+           c.name as client_name, c.color as client_color
+    FROM posts p JOIN clients c ON c.id = p.client_id
+    WHERE p.org_id = ?
+      AND p.scheduled_at IS NOT NULL
+      AND p.scheduled_at >= ? AND p.scheduled_at < ?
+    ORDER BY p.scheduled_at ASC
+  `).all(req.auth!.orgId, start, end);
+  return res.json({ posts });
+});
+
+// GET /api/posts/stats/timeline?days=30
+router.get("/stats/timeline", (req: Request, res: Response) => {
+  const db = getDb();
+  const days = Math.min(parseInt((req.query as any).days as string) || 30, 90);
+  const rows = db.prepare(`
+    SELECT DATE(created_at) as date, COUNT(*) as count
+    FROM posts
+    WHERE org_id = ? AND created_at >= DATE('now', '-${days} days')
+    GROUP BY DATE(created_at)
+    ORDER BY date ASC
+  `).all(req.auth!.orgId);
+  return res.json({ timeline: rows });
+});
+
+// GET /api/posts/stats/platforms
+router.get("/stats/platforms", (req: Request, res: Response) => {
+  const db = getDb();
+  const allPosts = db.prepare("SELECT platforms FROM posts WHERE org_id = ?").all(req.auth!.orgId) as any[];
+  const count: Record<string, number> = {};
+  for (const p of allPosts) {
+    try {
+      const arr: string[] = JSON.parse(p.platforms || "[]");
+      for (const pl of arr) if (pl) count[pl] = (count[pl] || 0) + 1;
+    } catch {}
+  }
+  const platforms = Object.entries(count)
+    .sort(([, a], [, b]) => b - a)
+    .map(([name, total]) => ({ name, count: total }));
+  return res.json({ platforms });
+});
+
+// GET /api/posts/stats/clients
+router.get("/stats/clients", (req: Request, res: Response) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT c.name, c.color, COUNT(p.id) as count
+    FROM clients c
+    LEFT JOIN posts p ON p.client_id = c.id
+    WHERE c.org_id = ? AND c.is_active = 1
+    GROUP BY c.id ORDER BY count DESC LIMIT 10
+  `).all(req.auth!.orgId);
+  return res.json({ clients: rows });
+});
+
 // GET /api/posts?client_id=&status=&limit=&offset=
 router.get("/", (req: Request, res: Response) => {
   const db = getDb();

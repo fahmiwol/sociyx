@@ -62,6 +62,37 @@ router.post("/logout", (_req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+// PUT /api/auth/profile — update name / password
+router.put("/profile", requireAuth, async (req: Request, res: Response) => {
+  const { fullName, currentPassword, newPassword } = req.body;
+  const db = getDb();
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.auth!.userId) as any;
+  if (!user) return res.status(404).json({ error: "User tidak ditemukan" });
+
+  const fields: string[] = [];
+  const vals: unknown[] = [];
+
+  if (fullName?.trim()) {
+    fields.push("full_name = ?");
+    vals.push(fullName.trim());
+  }
+
+  if (newPassword) {
+    if (!currentPassword) return res.status(400).json({ error: "Password lama wajib diisi" });
+    const ok = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!ok) return res.status(401).json({ error: "Password lama salah" });
+    if (newPassword.length < 6) return res.status(400).json({ error: "Password baru minimal 6 karakter" });
+    fields.push("password_hash = ?");
+    vals.push(await bcrypt.hash(newPassword, 10));
+  }
+
+  if (fields.length === 0) return res.status(400).json({ error: "Tidak ada perubahan" });
+
+  vals.push(req.auth!.userId);
+  db.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).run(...vals);
+  return res.json({ ok: true });
+});
+
 // GET /api/auth/me
 router.get("/me", requireAuth, (req: Request, res: Response) => {
   const db = getDb();

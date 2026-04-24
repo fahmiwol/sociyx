@@ -18,6 +18,7 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string, orgName: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -52,7 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>;
+  async function refreshUser() {
+    const { user: u } = await authApi.me();
+    setUser({ id: u.id, email: u.email, fullName: u.full_name, role: u.role, orgId: u.org_id, orgName: u.org_name, orgSlug: u.org_slug, plan: u.plan });
+  }
+
+  return <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

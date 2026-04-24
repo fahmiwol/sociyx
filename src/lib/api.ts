@@ -27,6 +27,8 @@ export const authApi = {
     api.post<{ ok: boolean }>("/auth/register", { email, password, fullName, orgName }),
   logout: () => api.post<{ ok: boolean }>("/auth/logout", {}),
   me: () => api.get<{ user: any }>("/auth/me"),
+  updateProfile: (data: { fullName?: string; currentPassword?: string; newPassword?: string }) =>
+    api.put<{ ok: boolean }>("/auth/profile", data),
 };
 
 // Clients
@@ -50,16 +52,23 @@ export const postsApi = {
   delete: (id: number) => api.delete<{ ok: boolean }>(`/posts/${id}`),
   dashboard: () => api.get<any>("/posts/stats/dashboard"),
   schedulerLog: () => api.get<{ logs: any[] }>("/posts/scheduler/log"),
+  calendar: (year: number, month: number) => api.get<{ posts: any[] }>(`/posts/stats/calendar?year=${year}&month=${month}`),
+  timeline: (days?: number) => api.get<{ timeline: any[] }>(`/posts/stats/timeline?days=${days || 30}`),
+  platforms: () => api.get<{ platforms: any[] }>("/posts/stats/platforms"),
+  clientStats: () => api.get<{ clients: any[] }>("/posts/stats/clients"),
 };
 
 // AI
 export const aiApi = {
+  status: () => api.get<{ providers: any[] }>("/ai/status"),
   caption: (data: { topic: string; platform: string; tone: string; clientId?: number }) =>
     api.post<{ caption: string }>("/ai/caption", data),
   hashtags: (data: { topic: string; platform: string; clientId?: number }) =>
     api.post<{ hashtags: string[] }>("/ai/hashtags", data),
   brandGuidelines: (data: { clientName: string; industry?: string; description?: string }) =>
     api.post<{ guidelines: any }>("/ai/brand-guidelines", data),
+  improve: (data: { text: string; type?: string; platform?: string; tone?: string }) =>
+    api.post<{ improved: string; provider: string; model: string }>("/ai/improve", data),
 };
 
 // Media

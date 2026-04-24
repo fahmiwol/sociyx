@@ -1,41 +1,61 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import { Search, Bell, Cpu } from 'lucide-react';
+import { useAuth } from '../lib/auth';
+import { useLocation } from 'react-router-dom';
 
-import { Search, Bell } from 'lucide-react';
+const PAGE_LABELS: Record<string, string> = {
+  '/':          'Beranda',
+  '/clients':   'Klien',
+  '/assets':    'Aset Brand',
+  '/editor':    'Studio Video',
+  '/studio':    'Studio AI',
+  '/calendar':  'Kalender',
+  '/analytics': 'Analitik',
+  '/settings':  'Pengaturan',
+};
 
 export default function Header() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const pageLabel = PAGE_LABELS[location.pathname] || 'OPIX';
+
   return (
-    <header className="fixed top-0 right-0 w-[calc(100%-268px)] h-12 bg-[#10131c]/80 backdrop-blur-md z-40 border-b border-white/5 flex justify-between items-center px-6 font-headline font-medium text-xs uppercase tracking-widest">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2 text-slate-400">
-          <Search className="w-4 h-4" />
-          <span className="opacity-50">Cari misi atau data...</span>
+    <header className="fixed top-0 right-0 w-[calc(100%-268px)] h-12 bg-[#10131c]/80 backdrop-blur-md z-40 border-b border-white/5 flex justify-between items-center px-6 font-body text-xs">
+      {/* Left: breadcrumb */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 text-slate-500">
+          <span className="text-[9px] font-bold uppercase tracking-widest">OPIX</span>
+          <span className="text-slate-700">/</span>
+          <span className="text-white font-semibold text-[11px]">{pageLabel}</span>
         </div>
-        <div className="flex gap-4 ml-4">
-          <a className="text-primary-container border-b-2 border-primary-container pb-1" href="#">Misi</a>
-          <a className="text-slate-400 hover:text-white transition-colors" href="#">Telemetri</a>
+        <div className="h-4 w-px bg-white/10" />
+        <div className="flex items-center gap-2 text-slate-500 cursor-not-allowed">
+          <Search className="w-3.5 h-3.5" />
+          <span className="text-[11px]">Cari...</span>
         </div>
       </div>
 
-      <div className="flex items-center gap-5">
-        <button className="text-slate-400 hover:text-white transition-all relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full"></span>
+      {/* Right: user + notifs */}
+      <div className="flex items-center gap-4">
+        {/* AI status dot */}
+        <div className="flex items-center gap-1.5 text-slate-600">
+          <Cpu className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-mono">AI</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.7)]" />
+        </div>
+
+        <button className="text-slate-500 hover:text-white transition-all relative">
+          <Bell className="w-4 h-4" />
+          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary-container rounded-full" />
         </button>
-        
-        <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+
+        <div className="flex items-center gap-2.5 pl-4 border-l border-white/10">
           <div className="text-right">
-            <p className="text-[10px] leading-none text-white font-bold">COMMANDER</p>
-            <p className="text-[8px] text-primary tracking-normal lowercase mt-1">Level 4 Clearance</p>
+            <p className="text-[11px] leading-none text-white font-bold">{user?.fullName?.split(' ')[0] || 'User'}</p>
+            <p className="text-[9px] text-slate-500 mt-0.5 capitalize">{user?.role || 'member'} · {user?.orgName?.split(' ')[0]}</p>
           </div>
-          <img 
-            alt="User Profile" 
-            className="w-8 h-8 rounded-full border border-primary/30" 
-            src="https://picsum.photos/seed/commander/100/100" 
-            referrerPolicy="no-referrer"
-          />
+          <div className="w-7 h-7 rounded-full bg-primary-container/20 border border-primary-container/30 flex items-center justify-center text-[10px] font-bold text-primary-container">
+            {user?.fullName?.charAt(0).toUpperCase() || 'U'}
+          </div>
         </div>
       </div>
     </header>

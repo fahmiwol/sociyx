@@ -7,6 +7,9 @@ import StudioAI from './pages/StudioAI';
 import Clients from './pages/Clients';
 import BrandAssets from './pages/BrandAssets';
 import VideoEditor from './pages/VideoEditor';
+import Calendar from './pages/Calendar';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 import Login from './pages/Login';
 
 function AppShell() {
@@ -33,6 +36,9 @@ function AppShell() {
           <Route path="/assets" element={<BrandAssets />} />
           <Route path="/editor" element={<VideoEditor />} />
           <Route path="/studio" element={<StudioAI />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
