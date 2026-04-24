@@ -1,17 +1,11 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
-  Plus,
-  Search,
-  MoreVertical,
-  Grid2X2,
-  Settings,
-  Users,
-  X,
-  Loader2
+  Plus, Search, Trash2, Sparkles, Users, X, Loader2, ChevronDown
 } from 'lucide-react';
 import { clientsApi } from '../lib/api';
 import { cn } from '../lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 interface Client {
   id: number;
@@ -29,8 +23,14 @@ const INDUSTRY_COLOR: Record<string, string> = {
   fashion: 'bg-blue-400', 'f&b': 'bg-orange-400', tech: 'bg-purple-400',
   beauty: 'bg-emerald-400', other: 'bg-slate-400',
 };
+const PRESET_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444',
+  '#f97316', '#eab308', '#22c55e', '#14b8a6',
+  '#3b82f6', '#06b6d4', '#a855f7', '#f43f5e',
+];
 
 export default function Clients() {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('Semua');
@@ -38,7 +38,10 @@ export default function Clients() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newIndustry, setNewIndustry] = useState('');
+  const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [saving, setSaving] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const load = () => {
     setLoading(true);
@@ -60,11 +63,20 @@ export default function Clients() {
     if (!newName.trim()) return;
     setSaving(true);
     try {
-      await clientsApi.create({ name: newName, industry: newIndustry });
-      setNewName(''); setNewIndustry(''); setShowAdd(false);
+      await clientsApi.create({ name: newName, industry: newIndustry, color: newColor });
+      setNewName(''); setNewIndustry(''); setNewColor(PRESET_COLORS[0]); setShowAdd(false);
       load();
     } catch (err) { console.error(err); }
     finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Hapus klien "${name}"? Semua post terkait tidak akan terhapus.`)) return;
+    try {
+      await clientsApi.delete(id);
+      setMenuOpenId(null);
+      load();
+    } catch (err: any) { alert(err.message || 'Gagal menghapus klien'); }
   };
 
   return (
@@ -109,6 +121,16 @@ export default function Clients() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="text-xs text-slate-400 font-bold uppercase tracking-widest block mb-2">Warna Brand</label>
+                <div className="flex flex-wrap gap-2">
+                  {PRESET_COLORS.map(c => (
+                    <button key={c} onClick={() => setNewColor(c)}
+                      className={cn("w-7 h-7 rounded-lg border-2 transition-all", newColor === c ? "border-white scale-110" : "border-transparent")}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setShowAdd(false)}
                   className="flex-1 py-3 rounded-xl border border-white/10 text-slate-400 font-bold text-sm hover:bg-white/5 transition-all">
@@ -149,6 +171,11 @@ export default function Clients() {
         </div>
       </section>
 
+      {/* Backdrop to close dropdowns */}
+      {menuOpenId !== null && (
+        <div className="fixed inset-0 z-40" onClick={() => setMenuOpenId(null)} />
+      )}
+
       {/* Grid */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -184,8 +211,6 @@ export default function Clients() {
                       {client.industry || 'other'}
                     </span>
                     <div className="flex gap-1.5">
-                      <button className="p-1 hover:text-white transition-colors text-slate-500"><Grid2X2 className="w-4 h-4" /></button>
-                      <button className="p-1 hover:text-white transition-colors text-slate-500"><Settings className="w-4 h-4" /></button>
                     </div>
                   </div>
                 </div>
@@ -208,13 +233,32 @@ export default function Clients() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <button className="flex-1 bg-white/5 hover:bg-white/10 py-2.5 rounded-lg text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-2">
-                    <Users className="w-4 h-4" /> Buka Studio
+                <div className="flex gap-3 relative">
+                  <button onClick={() => navigate('/studio')}
+                    className="flex-1 bg-white/5 hover:bg-white/10 py-2.5 rounded-lg text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4" /> Buat Konten
                   </button>
-                  <button className="w-12 bg-white/5 hover:bg-white/10 rounded-lg flex items-center justify-center transition-all border border-white/10">
-                    <MoreVertical className="w-4 h-4 text-slate-400" />
-                  </button>
+                  <div className="relative z-50">
+                    <button onClick={() => setMenuOpenId(menuOpenId === client.id ? null : client.id)}
+                      className="w-10 h-full bg-white/5 hover:bg-white/10 rounded-lg flex items-center justify-center transition-all border border-white/10">
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    </button>
+                    <AnimatePresence>
+                      {menuOpenId === client.id && (
+                        <motion.div initial={{ opacity: 0, y: -8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                          className="absolute bottom-full right-0 mb-2 w-44 bg-[#1c2030] border border-white/10 rounded-xl p-1.5 z-50 shadow-xl">
+                          <button onClick={() => navigate(`/studio`)}
+                            className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center gap-2 transition-all">
+                            <Users className="w-3.5 h-3.5" /> Lihat Post
+                          </button>
+                          <button onClick={() => handleDelete(client.id, client.name)}
+                            className="w-full text-left px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg flex items-center gap-2 transition-all mt-1">
+                            <Trash2 className="w-3.5 h-3.5" /> Hapus Klien
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
             </motion.div>
