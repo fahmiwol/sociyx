@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Plus, Search, Image as ImageIcon, Palette, FileText, Download, Trash2, FolderOpen, Loader2, Upload

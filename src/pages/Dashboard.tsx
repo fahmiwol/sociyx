@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  TrendingUp, Rocket, AlertCircle, Sparkles,
-  FileUp, CalendarCheck, PieChart, Clock, Edit2, Zap, Users, FileText
+  TrendingUp, Rocket, Sparkles,
+  FileUp, CalendarCheck, PieChart, Clock, Edit2, Zap, Users, FileText, CheckCircle2
 } from 'lucide-react';
 import { postsApi } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -19,14 +19,25 @@ const STATUS_STYLE: Record<string, string> = {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<any>(null);
+  const [stats,   setStats]   = useState<any>(null);
+  const [logs,    setLogs]    = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadData = () => {
     postsApi.dashboard()
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false));
+    postsApi.schedulerLog()
+      .then(({ logs: l }) => setLogs(l))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadData();
+    // Auto-refresh every 60s to pick up scheduler updates
+    const t = setInterval(loadData, 60_000);
+    return () => clearInterval(t);
   }, []);
 
   const metrics = stats ? [
@@ -183,6 +194,34 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+
+          {/* Scheduler log */}
+          <div className="glass-panel p-5 rounded-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-secondary animate-pulse inline-block" />
+                Auto-Publish Log
+              </p>
+              <span className="text-[10px] text-slate-600 font-mono">60s interval</span>
+            </div>
+            {logs.length === 0 ? (
+              <p className="text-[10px] text-slate-600 italic">Belum ada post yang di-publish otomatis.</p>
+            ) : (
+              <div className="space-y-2">
+                {logs.slice(0, 5).map((log: any) => (
+                  <div key={log.id} className="flex items-center gap-2 text-[10px]">
+                    <CheckCircle2 className="w-3 h-3 text-secondary shrink-0" />
+                    <span className="text-slate-300 truncate flex-1">
+                      {log.title || log.caption?.slice(0, 30) || 'Post'}
+                    </span>
+                    <span className="text-slate-600 font-mono shrink-0">
+                      {new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </motion.div>

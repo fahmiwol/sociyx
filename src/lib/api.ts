@@ -49,6 +49,7 @@ export const postsApi = {
   update: (id: number, data: any) => api.put<{ ok: boolean }>(`/posts/${id}`, data),
   delete: (id: number) => api.delete<{ ok: boolean }>(`/posts/${id}`),
   dashboard: () => api.get<any>("/posts/stats/dashboard"),
+  schedulerLog: () => api.get<{ logs: any[] }>("/posts/scheduler/log"),
 };
 
 // AI
